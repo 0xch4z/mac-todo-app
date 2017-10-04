@@ -12,23 +12,33 @@ class ItemsViewController: NSViewController, NSTableViewDataSource, NSTableViewD
     
     @IBOutlet weak var tableView: NSTableView!
     
+    
+    var items: [ToDoItem] = []
+    
+    
     static let titleCellId = "TitleCell"
     static let importantCellId = "ImportantCell"
+    
     
     override func viewDidLoad() {
         super.viewDidLoad()
         tableView.dataSource = self
         tableView.delegate = self
-        getToDoItems()
         NotificationCenter.default.addObserver(self, selector: #selector(getToDoItems),
-                    name: NSNotification.Name(rawValue: "ItemsDidUpdate"), object: nil)
+                                               name: .ItemsDidUpdate, object: nil)
     }
+    
     
     override func viewWillAppear() {
         getToDoItems()
     }
     
-    var items: [ToDoItem] = []
+    
+    // MARK: - Dispatch notification to reload table view
+    func dispatchTableReload() {
+        NotificationCenter.default.post(name: .ItemsDidUpdate, object: nil)
+    }
+    
     
     // MARK: - Fetch ToDoItems
     @objc func getToDoItems() {
@@ -47,26 +57,43 @@ class ItemsViewController: NSViewController, NSTableViewDataSource, NSTableViewD
         tableView.reloadData()
     }
     
+    
     // MARK: - Set number of rows
     func numberOfRows(in tableView: NSTableView) -> Int {
         return items.count
     }
     
+    
     // MARK: - Set up table
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let item = items[row]
-        if (tableColumn?.identifier)!.rawValue == "Important" {
-            if let cell = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(rawValue: "Important"), owner: self) as? NSTableCellView {
+        // determine column to render
+        if (tableColumn?.identifier) != .Important {
+            // make important column cell
+            if let cell = tableView.makeView(withIdentifier: .Important, owner: self) as? NSTableCellView {
                 cell.textField?.stringValue = item.isImportant ? "\u{2757}" : ""
                 return cell
             }
         } else {
-            if let cell = tableView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(rawValue: "Title"), owner: self) as? NSTableCellView {
+            // make title column cell
+            if let cell = tableView.makeView(withIdentifier: .Title, owner: self) as? NSTableCellView {
                 cell.textField?.stringValue = item.title ?? ""
                 return cell
             }
         }
         return nil
+    }
+    
+    
+    // MARK: - Dispatch selection did change and post item
+    func tableViewSelectionDidChange(_ notification: Notification) {
+        if (tableView.selectedRow == -1) {
+            // exit if header selected!
+            return
+        }
+        // post notification with item
+        let item = items[tableView.selectedRow]
+        NotificationCenter.default.post(name: .ItemWasSelected, object: nil, userInfo: ["item": item])
     }
     
 }
